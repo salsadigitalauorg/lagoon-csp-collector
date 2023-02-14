@@ -2,9 +2,10 @@ package handler
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 )
 
@@ -35,12 +36,23 @@ type CSPHandler struct {
 	DomainList map[string]string
 }
 
-func ProjectFromDocumentURI(d string) (string, error) {
-	url, err := url.Parse(d)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimPrefix(url.Hostname(), "www."), nil
+type CSPResponse struct {
+	LagoonProject      string      `json:"lagoon_project"`
+	Host               string      `json:"host"`
+	OriginalURI        string      `json:"original_uri"`
+	Referrer           string      `json:"referrer"`
+	ViolatedDirective  string      `json:"violated_directive"`
+	EffectiveDirective string      `json:"effective_directive"`
+	Policy             string      `json:"policy"`
+	BlockedURI         string      `json:"blocked_uri"`
+	Source             string      `json:"source"`
+	Status             interface{} `json:"status"`
+	LineNumber         interface{} `json:"line_number"`
+}
+
+type ErrorReponse struct {
+	Reason  string `json:"reason"`
+	Details string `json:"details"`
 }
 
 func (csp *CSPHandler) Serve(w http.ResponseWriter, r *http.Request) {
@@ -52,22 +64,38 @@ func (csp *CSPHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	var report CSPReport
 	err := json.NewDecoder(r.Body).Decode(&report)
 	if err != nil {
-		log.Fatal(err)
 		w.WriteHeader(http.StatusUnprocessableEntity)
+		json.NewEncoder(w).Encode(ErrorReponse{
+			Reason:  "Invalid domain provided",
+			Details: fmt.Sprintf("%s", err),
+		})
 		return
 	}
 
-	// DocumentURI in the CSP payload will container a FQDN of
-	// the violation we can keep an in-memory map of all knwon
-	// subscribers to the CSP violation service and map them back
-	// to Lagoon projects to manage the index.
-	// p, err := ProjectFromDocumentURI(report.Body.DocumentURI)
+	url, _ := url.Parse(report.Body.DocumentURI)
+	host := strings.TrimPrefix(url.Hostname(), "www.")
 
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Fatalf("Unable to parse document-uri %s", err)
+	lagoonProject, ok := csp.DomainList[host]
+	if !ok {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		json.NewEncoder(w).Encode(ErrorReponse{
+			Details: "Invalid domain provided",
+		})
 		return
 	}
 
+	json.NewEncoder(os.Stdout).Encode(CSPResponse{
+		LagoonProject:      lagoonProject,
+		Host:               host,
+		OriginalURI:        report.Body.DocumentURI,
+		Referrer:           report.Body.Referrer,
+		ViolatedDirective:  report.Body.ViolatedDirective,
+		EffectiveDirective: report.Body.EffectiveDirective,
+		Policy:             report.Body.OriginalPolicy,
+		BlockedURI:         report.Body.BlockedURI,
+		Source:             report.Body.SourceFile,
+		Status:             report.Body.StatusCode,
+		LineNumber:         report.Body.LineNumber,
+	})
 	w.WriteHeader(http.StatusOK)
 }
