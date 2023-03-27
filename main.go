@@ -1,30 +1,41 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
-	"io/ioutil"
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/salsadigitalauorg/lagoon-csp-collector/internal/handler"
+	"github.com/salsadigitalauorg/lagoon-csp-collector/internal/util"
+)
+
+var (
+	version string
+	commit  string
 )
 
 func main() {
-	domainFile := flag.String("domains", "", "Path to the domain/project mapping list")
-	var domains map[string]string
+	port := flag.String("port", "3000", "Port to run the collector on")
+	a := flag.String("api", "https://example.com", "The endpoint to hydrate the CSP report")
 
-	data, _ := ioutil.ReadFile(*domainFile)
-	json.Unmarshal(data, &domains)
+	flag.Parse()
+
+	project := util.Project{API: *a}
 
 	http.HandleFunc("/v1", (&handler.CSPHandler{
 		ReportOnly:           false,
 		LogClientIP:          false,
 		LogTruncatedClientIP: false,
-		DomainList:           domains,
+		Version:              version,
+		Commit:               commit,
+		Project:              project,
 	}).Serve)
 
-	http.HandleFunc("/v1/healthz", (&handler.HealthcheckHandler{}).Serve)
+	http.HandleFunc("/v1/healthz", (&handler.HealthcheckHandler{
+		Version: version,
+		Commit:  commit,
+	}).Serve)
 
-	log.Fatal(http.ListenAndServe(":3000", nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", *port), nil))
 }

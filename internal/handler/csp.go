@@ -3,10 +3,13 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/salsadigitalauorg/lagoon-csp-collector/internal/util"
 )
 
 type CSPReport struct {
@@ -32,14 +35,16 @@ type CSPHandler struct {
 	ReportOnly           bool
 	LogClientIP          bool
 	LogTruncatedClientIP bool
-
-	DomainList map[string]string
+	Version              string
+	Commit               string
+	Project              util.Project
 }
 
 type CSPResponse struct {
 	LagoonProject      string      `json:"lagoon_project"`
 	Host               string      `json:"host"`
 	OriginalURI        string      `json:"original_uri"`
+	Disposition        string      `json:"disposition"`
 	Referrer           string      `json:"referrer"`
 	ViolatedDirective  string      `json:"violated_directive"`
 	EffectiveDirective string      `json:"effective_directive"`
@@ -65,6 +70,7 @@ func (csp *CSPHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&report)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
+		log.Fatal(err)
 		json.NewEncoder(w).Encode(ErrorReponse{
 			Reason:  "Invalid domain provided",
 			Details: fmt.Sprintf("%s", err),
@@ -75,17 +81,8 @@ func (csp *CSPHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	url, _ := url.Parse(report.Body.DocumentURI)
 	host := strings.TrimPrefix(url.Hostname(), "www.")
 
-	lagoonProject, ok := csp.DomainList[host]
-	if !ok {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		json.NewEncoder(w).Encode(ErrorReponse{
-			Details: "Invalid domain provided",
-		})
-		return
-	}
-
 	json.NewEncoder(os.Stdout).Encode(CSPResponse{
-		LagoonProject:      lagoonProject,
+		LagoonProject:      "test",
 		Host:               host,
 		OriginalURI:        report.Body.DocumentURI,
 		Referrer:           report.Body.Referrer,
@@ -96,6 +93,7 @@ func (csp *CSPHandler) Serve(w http.ResponseWriter, r *http.Request) {
 		Source:             report.Body.SourceFile,
 		Status:             report.Body.StatusCode,
 		LineNumber:         report.Body.LineNumber,
+		Disposition:        report.Body.Disposition,
 	})
 	w.WriteHeader(http.StatusOK)
 }
