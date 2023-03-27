@@ -2,7 +2,7 @@ package util
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"net/http"
 )
@@ -13,13 +13,24 @@ type Project struct {
 	Domain string
 }
 
-type Response struct {
-	Name string `json:"field"`
-}
+/*
+GetName from the configured API service.
 
+Makes an API request to the configured service, this will pass the received domain
+from the CSP violation and will determine if a Lagoon project can be inferred from
+the hostname.
+
+@TODO: Current expectation is the service matching domain to project will return a
+slice of project names. To make this more robust, this handler should be pluggable.
+*/
 func (p *Project) GetName() (string, error) {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", p.API, nil)
+
+	if p.API == "" {
+		return "", errors.New("Missing API configuration")
+	}
+
+	req, err := http.NewRequest("GET", p.API+"?domain="+p.Domain, nil)
 
 	if err != nil {
 		return "", err
@@ -32,14 +43,22 @@ func (p *Project) GetName() (string, error) {
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+
 	if err != nil {
-		fmt.Println(err)
-		return "", nil
+		return "", err
 	}
 
-	var r Response
-	_ = json.Unmarshal(body, r)
-	p.Name = r.Name
+	var r []string
+	err = json.Unmarshal(body, &r)
 
-	return r.Name, nil
+	if err != nil {
+		return "", err
+	}
+
+	if len(r) > 0 {
+		p.Name = r[0]
+		return p.Name, nil
+	}
+
+	return "", errors.New("Unable to get project from domain")
 }

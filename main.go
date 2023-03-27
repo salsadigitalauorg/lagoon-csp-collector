@@ -17,7 +17,7 @@ var (
 
 func main() {
 	port := flag.String("port", "3000", "Port to run the collector on")
-	a := flag.String("api", "https://example.com", "The endpoint to hydrate the CSP report")
+	a := flag.String("api", "", "The endpoint to hydrate the CSP report")
 
 	flag.Parse()
 

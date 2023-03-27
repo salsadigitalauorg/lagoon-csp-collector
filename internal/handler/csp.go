@@ -2,12 +2,9 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 
 	"github.com/salsadigitalauorg/lagoon-csp-collector/internal/util"
 )
@@ -70,20 +67,16 @@ func (csp *CSPHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&report)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		log.Fatal(err)
-		json.NewEncoder(w).Encode(ErrorReponse{
-			Reason:  "Invalid domain provided",
-			Details: fmt.Sprintf("%s", err),
-		})
 		return
 	}
 
 	url, _ := url.Parse(report.Body.DocumentURI)
-	host := strings.TrimPrefix(url.Hostname(), "www.")
+	csp.Project.Domain = url.Scheme + "://" + url.Host
+	p, _ := csp.Project.GetName()
 
 	json.NewEncoder(os.Stdout).Encode(CSPResponse{
-		LagoonProject:      "test",
-		Host:               host,
+		LagoonProject:      p,
+		Host:               url.Host,
 		OriginalURI:        report.Body.DocumentURI,
 		Referrer:           report.Body.Referrer,
 		ViolatedDirective:  report.Body.ViolatedDirective,
