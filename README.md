@@ -1,7 +1,6 @@
 # Lagoon CSP collector
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/salsadigitalauorg/lagoon-csp-collector)
 [![Go Report Card](https://goreportcard.com/badge/github.com/salsadigitalauorg/lagoon-csp-collector)](https://goreportcard.com/report/github.com/salsadigitalauorg/lagoon-csp-collector)
-[![Coverage Status](https://coveralls.io/repos/github/salsadigitalauorg/lagoon-csp-collector/badge.svg?branch=main)](https://coveralls.io/github/salsadigitalauorg/lagoon-csp-collector?branch=main)
 [![Release](https://img.shields.io/github/v/release/salsadigitalauorg/lagoon-csp-collector)](https://github.com/salsadigitalauorg/lagoon-csp-collector/releases/latest)
 
 ## Installation
