@@ -18,6 +18,7 @@ var (
 func main() {
 	port := flag.String("port", "3000", "Port to run the collector on")
 	a := flag.String("api", "", "The endpoint to hydrate the CSP report")
+	d := flag.String("test-domain", "", "A domain to validate in the health check")
 
 	flag.Parse()
 
@@ -33,8 +34,10 @@ func main() {
 	}).Serve)
 
 	http.HandleFunc("/v1/healthz", (&handler.HealthcheckHandler{
-		Version: version,
-		Commit:  commit,
+		Version:   version,
+		Commit:    commit,
+		APIConfig: *a,
+		Domain:    *d,
 	}).Serve)
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", *port), nil))
